@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import axios from 'axios';
-import { useRouter } from 'next/router';
+import { AuthContext } from '../context/AuthContext';
 
 export default function Signup() {
-	const router = useRouter();
-
+	const { saveAccessTokenAndRedirect } = useContext(AuthContext);
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [error, setError] = useState(null);
@@ -17,18 +16,12 @@ export default function Signup() {
 				email,
 				password,
 			});
+
 			if (response.status === 200) {
-				const { access_token } = response.data;
-				if (access_token) {
-					localStorage.setItem('access_token', access_token);
-					axios.defaults.headers.common[
-						'Authorization'
-					] = `Bearer ${access_token}`;
-					router.push('/');
-				}
+				saveAccessTokenAndRedirect(response.data.access_token);
 			}
 		} catch (error) {
-			setError(error.response.data.detail); // Handle signup error
+			setError(error.response.data.detail);
 		}
 	};
 

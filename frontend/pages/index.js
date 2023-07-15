@@ -1,62 +1,53 @@
-import { useState, useEffect } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import Link from 'next/link';
-import { useRouter } from 'next/router';
+import { AuthContext } from '../context/AuthContext';
 
 export default function Home() {
-	const router = useRouter();
-
+	const { isLoggedIn, logout } = useContext(AuthContext);
 	const [notebooks, setNotebooks] = useState([]);
 	const [filename, setFilename] = useState('');
-	const [content, setContent] = useState('');
-	const [isLoggedIn, setIsLoggedIn] = useState(false); // New state variable
+	const [banner, setBanner] = useState('');
+	const [error, setError] = useState('');
 
 	useEffect(() => {
-		checkLoginStatus(); // Check login status when component mounts
-	}, []);
+		if (isLoggedIn) fetchNotebooks();
+	}, [isLoggedIn]);
 
 	const fetchNotebooks = async () => {
 		try {
 			const response = await axios.get('http://localhost:8000/notebooks');
 			setNotebooks(response.data);
-			console.log(response.data);
 		} catch (error) {
-			console.error('Error fetching notebooks:', error);
+			setError('Error fetching notebooks: ' + error.response.data.detail);
 		}
 	};
 
 	const createNotebook = async () => {
-		if (!filename || !content) return;
+		if (!filename) return;
 
 		try {
 			const response = await axios.post('http://localhost:8000/notebooks', {
 				filename,
-				content,
 			});
 			const createdNotebook = response.data;
+			console.log(createdNotebook);
 			setNotebooks([...notebooks, createdNotebook]);
 			setFilename('');
-			setContent('');
 		} catch (error) {
-			console.error('Error creating notebook:', error);
+			setError('Error creating notebook: ' + error.response.data.detail);
 		}
 	};
 
-	const logout = () => {
-		localStorage.removeItem('access_token');
-		delete axios.defaults.headers.common['Authorization'];
-		setIsLoggedIn(false); // Update isLoggedIn state
-		router.push('/login');
-	};
-
-	const checkLoginStatus = () => {
-		const token = localStorage.getItem('access_token');
-		if (token) {
-			axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-			setIsLoggedIn(true);
-			fetchNotebooks();
-		} else {
-			setIsLoggedIn(false);
+	const deleteNotebook = async (id) => {
+		try {
+			const response = await axios.delete(
+				`http://localhost:8000/notebooks/${id}`
+			);
+			setNotebooks(notebooks.filter((notebook) => notebook.id != id));
+			setBanner(response.data.message);
+		} catch (error) {
+			setError('Error deleting notebook: ' + error.response.data.detail);
 		}
 	};
 
@@ -64,6 +55,16 @@ export default function Home() {
 		<div>
 			<header className="flex justify-between items-center p-4">
 				<h1>Notebooks</h1>
+				{banner && (
+					<div className="inline-block bg-blue-500 text-white px-4 py-2">
+						{banner}
+					</div>
+				)}
+				{error && (
+					<div className="inline-block bg-red-500 text-white px-4 py-2">
+						{error}
+					</div>
+				)}
 
 				<div>
 					{isLoggedIn ? (
@@ -99,13 +100,6 @@ export default function Home() {
 							value={filename}
 							onChange={(e) => setFilename(e.target.value)}
 						/>
-						<input
-							type="text"
-							className="border border-gray-300 p-2 mr-2"
-							placeholder="Content"
-							value={content}
-							onChange={(e) => setContent(e.target.value)}
-						/>
 						<button
 							className="bg-blue-500 text-white px-4 py-2"
 							onClick={createNotebook}
@@ -115,14 +109,17 @@ export default function Home() {
 					</div>
 
 					<ul>
-						{notebooks.map((notebook, idx) => (
-							<li key={idx}>
+						{notebooks.map((notebook) => (
+							<li key={notebook.id}>
 								<Link
 									href={`/notebooks/${notebook.id}`}
 									className="text-blue-500"
 								>
 									{notebook.filename}
 								</Link>
+								<button onClick={() => deleteNotebook(notebook.id)}>
+									Delete
+								</button>
 							</li>
 						))}
 					</ul>

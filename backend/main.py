@@ -102,9 +102,12 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 # Model for creating a new notebook
 class NotebookCreateRequest(BaseModel):
     filename: str
+
+class NotebookDetailResponse(BaseModel):
+    filename: str
     content: str
 
-class NotebookListResponse(BaseModel):
+class NotebookResponse(BaseModel):
     id: str
     filename: str
 
@@ -118,37 +121,38 @@ class NotebookRunResponse(BaseModel):
     output: str
 
 # Endpoint to create a new notebook
-@app.post("/notebooks", response_model=NotebookCreateRequest)
+@app.post("/notebooks", response_model=NotebookResponse)
 async def create_notebook(
     notebook: NotebookCreateRequest, current_user: str = Depends(get_current_user)
 ):
     notebook_data = notebook.dict()
+    notebook_data["content"] = ""
     notebook_data["created_at"] = datetime.now()
     notebook_data["updated_at"] = datetime.now()
     notebook_data["user"] = current_user["id"]
     result = notebooks_collection.insert_one(notebook_data)
-    notebook_data["_id"] = result.inserted_id
+    notebook_data["id"] = str(result.inserted_id)
     return notebook_data
 
 # Endpoint to get a list of notebooks
-@app.get("/notebooks", response_model=list[NotebookListResponse])
+@app.get("/notebooks", response_model=list[NotebookResponse])
 async def list_notebooks(current_user: str = Depends(get_current_user)):
     notebooks = notebooks_collection.find({ "user": current_user["id"] }, { "_id": 1, "filename": 1 })
     notebooks_response = [{"id": str(notebook["_id"]), "filename": notebook["filename"]} for notebook in notebooks]
     return notebooks_response
 
 # Endpoint to get a notebook by ID
-@app.get("/notebooks/{notebook_id}", response_model=NotebookCreateRequest)
+@app.get("/notebooks/{notebook_id}", response_model=NotebookDetailResponse)
 async def get_notebook(
     notebook_id: str, current_user: str = Depends(get_current_user)
 ):
-    notebook = await notebooks_collection.find_one({"_id": ObjectId(notebook_id)})
+    notebook = notebooks_collection.find_one({"_id": ObjectId(notebook_id)})
     if notebook:
         return notebook
     raise HTTPException(status_code=404, detail="Notebook not found")
 
 # Endpoint to update a notebook by ID
-@app.put("/notebooks/{notebook_id}", response_model=NotebookCreateRequest)
+@app.put("/notebooks/{notebook_id}", response_model=NotebookDetailResponse)
 async def update_notebook(
     notebook_id: str,
     notebook: NotebookUpdateRequest,
@@ -156,11 +160,11 @@ async def update_notebook(
 ):
     notebook_data = notebook.dict()
     notebook_data["updated_at"] = datetime.now()
-    result = await notebooks_collection.update_one(
+    result = notebooks_collection.update_one(
         {"_id": ObjectId(notebook_id)}, {"$set": notebook_data}
     )
     if result.modified_count == 1:
-        updated_notebook = await notebooks_collection.find_one(
+        updated_notebook = notebooks_collection.find_one(
             {"_id": ObjectId(notebook_id)}
         )
         return updated_notebook
@@ -171,7 +175,7 @@ async def update_notebook(
 async def delete_notebook(
     notebook_id: str, current_user: str = Depends(get_current_user)
 ):
-    result = await notebooks_collection.delete_one({"_id": ObjectId(notebook_id)})
+    result = notebooks_collection.delete_one({"_id": ObjectId(notebook_id)})
     if result.deleted_count == 1:
         return {"message": "Notebook deleted successfully"}
     raise HTTPException(status_code=404, detail="Notebook not found")
