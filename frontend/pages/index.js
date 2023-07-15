@@ -2,13 +2,14 @@ import { useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import Link from 'next/link';
 import { AuthContext } from '../context/AuthContext';
+import Navbar from '../components/Navbar';
+import Banner from '../components/Banner';
 
 export default function Home() {
 	const { isLoggedIn, logout } = useContext(AuthContext);
 	const [notebooks, setNotebooks] = useState([]);
 	const [filename, setFilename] = useState('');
 	const [banner, setBanner] = useState('');
-	const [error, setError] = useState('');
 
 	useEffect(() => {
 		if (isLoggedIn) fetchNotebooks();
@@ -19,7 +20,8 @@ export default function Home() {
 			const response = await axios.get('http://localhost:8000/notebooks');
 			setNotebooks(response.data);
 		} catch (error) {
-			setError('Error fetching notebooks: ' + error.response.data.detail);
+			if (error.response.status == 401) logout();
+			setBanner('Error fetching notebooks: ' + error.response.data.detail);
 		}
 	};
 
@@ -35,7 +37,8 @@ export default function Home() {
 			setNotebooks([...notebooks, createdNotebook]);
 			setFilename('');
 		} catch (error) {
-			setError('Error creating notebook: ' + error.response.data.detail);
+			if (error.response.status == 401) logout();
+			setBanner('Error creating notebook: ' + error.response.data.detail);
 		}
 	};
 
@@ -47,56 +50,23 @@ export default function Home() {
 			setNotebooks(notebooks.filter((notebook) => notebook.id != id));
 			setBanner(response.data.message);
 		} catch (error) {
-			setError('Error deleting notebook: ' + error.response.data.detail);
+			if (error.response.status == 401) logout();
+			setBanner('Error deleting notebook: ' + error.response.data.detail);
 		}
 	};
 
 	return (
 		<div>
-			<header className="flex justify-between items-center p-4">
-				<h1>Notebooks</h1>
-				{banner && (
-					<div className="inline-block bg-blue-500 text-white px-4 py-2">
-						{banner}
-					</div>
-				)}
-				{error && (
-					<div className="inline-block bg-red-500 text-white px-4 py-2">
-						{error}
-					</div>
-				)}
+			<Navbar />
+			<Banner message={banner} />
 
-				<div>
-					{isLoggedIn ? (
-						<button
-							className="bg-red-500 text-white px-4 py-2"
-							onClick={logout}
-						>
-							Logout
-						</button>
-					) : (
-						<>
-							<Link
-								href="/signup"
-								className="bg-green-500 text-white px-4 py-2 mr-2"
-							>
-								Signup
-							</Link>
-							<Link href="/login" className="bg-blue-500 text-white px-4 py-2">
-								Login
-							</Link>
-						</>
-					)}
-				</div>
-			</header>
-
-			{isLoggedIn ? ( // Use isLoggedIn state instead of accessing localStorage directly
+			{isLoggedIn ? (
 				<div className="p-4">
 					<div className="mb-4">
 						<input
 							type="text"
 							className="border border-gray-300 p-2 mr-2"
-							placeholder="Filename"
+							placeholder="File name"
 							value={filename}
 							onChange={(e) => setFilename(e.target.value)}
 						/>
@@ -108,25 +78,43 @@ export default function Home() {
 						</button>
 					</div>
 
-					<ul>
-						{notebooks.map((notebook) => (
-							<li key={notebook.id}>
-								<Link
-									href={`/notebooks/${notebook.id}`}
-									className="text-blue-500"
-								>
-									{notebook.filename}
-								</Link>
-								<button onClick={() => deleteNotebook(notebook.id)}>
-									Delete
-								</button>
-							</li>
-						))}
-					</ul>
+					<table className="border border-gray-300">
+						<thead className="bg-gray-200 text-left">
+							<tr>
+								<th className="w-11/12 px-4 py-2">File name</th>
+								<th className="w-1/12 px-4 py-2">Actions</th>
+							</tr>
+						</thead>
+						<tbody>
+							{notebooks.map((notebook) => (
+								<tr key={notebook.id}>
+									<td className="px-4 py-2">
+										<Link
+											href={`/notebooks/${notebook.id}`}
+											className="text-blue-500"
+										>
+											{notebook.filename}
+										</Link>
+									</td>
+									<td className="px-4 py-2 text-left">
+										<button
+											className="bg-red-500 text-white px-4 py-2"
+											onClick={() => deleteNotebook(notebook.id)}
+										>
+											Delete
+										</button>
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
 				</div>
 			) : (
 				<div className="p-4">
-					<h3>Not logged in</h3>
+					<h3>
+						Welcome to <b>Jupypter Notebook Clone</b>! Log in or sign up to get
+						started.
+					</h3>
 				</div>
 			)}
 		</div>
