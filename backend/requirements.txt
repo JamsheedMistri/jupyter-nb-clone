@@ -1,0 +1,7 @@
+fastapi
+pydantic
+jose
+passlib
+supabase_py
+python-dotenv
+pymongo
