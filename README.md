@@ -1,6 +1,6 @@
 # Jupyter Notebook Clone
 
-**Jupyter Notebook Clone** is a web application that allows users to create, edit, and run notebooks containing code snippets and markdown content. This README provides instructions for setting up and running both the frontend and backend components of the application.
+**Jupyter Notebook Clone** is a web application that allows users to create, edit, and run notebooks containing code snippets and markdown content. You can view a live demo [here](https://www.loom.com/share/7bd0fff381f145dd83ac9530963dc14f). This README provides instructions for setting up and running both the frontend and backend components of the application.
 
 ## Backend Setup and Running
 
