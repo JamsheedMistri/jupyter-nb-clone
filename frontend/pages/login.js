@@ -12,6 +12,7 @@ export default function Login() {
 
 	const login = async (e) => {
 		e.preventDefault();
+
 		try {
 			const response = await axios.post('http://localhost:8000/auth/token', {
 				email,
