@@ -1,6 +1,7 @@
 import subprocess
 import asyncio
 import os
+import re
 from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -106,6 +107,7 @@ class NotebookCreateRequest(BaseModel):
 class NotebookDetailResponse(BaseModel):
     filename: str
     content: str
+    latest_run: str
 
 class NotebookResponse(BaseModel):
     id: str
@@ -127,6 +129,7 @@ async def create_notebook(
 ):
     notebook_data = notebook.dict()
     notebook_data["content"] = ""
+    notebook_data["latest_run"] = ""
     notebook_data["created_at"] = datetime.now()
     notebook_data["updated_at"] = datetime.now()
     notebook_data["user"] = current_user["id"]
@@ -185,25 +188,22 @@ async def delete_notebook(
 async def run_notebook(
     notebook_id: str, current_user: str = Depends(get_current_user)
 ):
-    notebook = await notebooks_collection.find_one({"_id": ObjectId(notebook_id)})
+    notebook = notebooks_collection.find_one({"_id": ObjectId(notebook_id)})
     if notebook:
-        code_lines = notebook["content"].split("\n")
+        code_blocks = re.findall(r"```python\n(.*?)```", notebook["content"], re.DOTALL)
         output = ""
-        for line in code_lines:
-            process = await asyncio.create_subprocess_shell(
-                line,
+        for code_block in code_blocks:
+            process = await asyncio.create_subprocess_exec(
+                "python", "-c", code_block,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
             stdout, stderr = await process.communicate()
             output += stdout.decode() + stderr.decode()
 
-        notebook_run = {
-            "timestamp": datetime.now(),
-            "output": output,
-        }
-        await notebooks_collection.update_one(
-            {"_id": ObjectId(notebook_id)}, {"$set": {"latest_run": notebook_run}}
+        notebooks_collection.update_one(
+            {"_id": ObjectId(notebook_id)}, {"$set": {"latest_run": output}}
         )
         return {"output": output}
     raise HTTPException(status_code=404, detail="Notebook not found")
+

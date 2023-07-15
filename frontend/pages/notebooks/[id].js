@@ -21,6 +21,7 @@ export default function Notebook() {
 
 	const [filename, setFilename] = useState('');
 	const [content, setContent] = useState('');
+	const [output, setOutput] = useState('');
 	const [banner, setBanner] = useState('');
 
 	useEffect(() => {
@@ -32,8 +33,10 @@ export default function Notebook() {
 	const fetchNotebook = async () => {
 		try {
 			const response = await axios.get(`http://localhost:8000/notebooks/${id}`);
+			console.log(response.data)
 			setFilename(response.data.filename);
 			setContent(response.data.content);
+			setOutput(response.data.latest_run);
 		} catch (error) {
 			if (error.response.status == 401) logout();
 			setBanner('Error fetching notebook:' + error);
@@ -68,7 +71,17 @@ export default function Notebook() {
 		}
 	};
 
-	const runNotebook = () => {};
+	const runNotebook = async () => {
+		await updateNotebook();
+		try {
+			const response = await axios.post(`http://localhost:8000/notebooks/${id}/run`);
+			setOutput(response.data.output);
+		} catch (error) {
+			if (error.response.status == 401) logout();
+			setBanner('Error running notebook:' + error);
+		}
+
+	};
 
 	return (
 		<div>
@@ -105,7 +118,7 @@ export default function Notebook() {
 					<MDEditor value={content} onChange={setContent} height={450} />
 				</div>
 				<label className="block">Output</label>
-				<div className="w-full bg-gray-200 h-48 overflow-y-scroll font-mono"></div>
+				<div className="w-full bg-gray-200 h-48 p-2 overflow-y-scroll font-mono text-black whitespace-pre-wrap">{output}</div>
 			</div>
 		</div>
 	);
